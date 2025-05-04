@@ -1,73 +1,83 @@
 import React, { useState } from 'react';
-import { Container, Typography, Box, TextField, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Alert, IconButton } from '@mui/material';
+import { Container, Typography, Box, TextField, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Alert, IconButton, Grid, Card, CardContent } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import SaveIcon from '@mui/icons-material/Save';
 
 const MAX_CRITERIA = 10;
 
 const DecisionMaker = () => {
-  const [criteria, setCriteria] = useState([{ name: '', weight: '' }]);
-  const [alternatives, setAlternatives] = useState(['']);
-  const [matrix, setMatrix] = useState([]);
+  const [tableData, setTableData] = useState([
+    { id: 0, name: '', type: 'alternative' },
+    { id: 1, name: '', type: 'criterion', weight: '' }
+  ]);
   const [error, setError] = useState('');
+  const [matrix, setMatrix] = useState({});
 
-  const handleCriteriaChange = (index, field, value) => {
-    const newCriteria = [...criteria];
-    newCriteria[index][field] = value;
-    setCriteria(newCriteria);
+  const handleTableChange = (id, field, value) => {
+    const newData = tableData.map(item => 
+      item.id === id ? { ...item, [field]: value } : item
+    );
+    setTableData(newData);
   };
 
-  const handleAlternativeChange = (index, value) => {
-    const newAlternatives = [...alternatives];
-    newAlternatives[index] = value;
-    setAlternatives(newAlternatives);
+  const addRow = () => {
+    const newRow = { 
+      id: tableData.length,
+      name: '',
+      type: 'alternative'
+    };
+    setTableData([...tableData, newRow]);
   };
 
-  const addCriteria = () => {
-    if (criteria.length < MAX_CRITERIA) {
-      setCriteria([...criteria, { name: '', weight: '' }]);
+  const addColumn = () => {
+    if (tableData.filter(item => item.type === 'criterion').length < MAX_CRITERIA) {
+      const newColumn = {
+        id: tableData.length,
+        name: '',
+        type: 'criterion',
+        weight: ''
+      };
+      setTableData([...tableData, newColumn]);
     }
   };
 
-  const removeCriteria = (index) => {
-    if (criteria.length > 1) {
-      const newCriteria = [...criteria];
-      newCriteria.splice(index, 1);
-      setCriteria(newCriteria);
+  const removeRow = (id) => {
+    if (tableData.filter(item => item.type === 'alternative').length > 1) {
+      setTableData(tableData.filter(item => item.id !== id));
     }
   };
 
-  const addAlternative = () => {
-    setAlternatives([...alternatives, '']);
-  };
-
-  const removeAlternative = (index) => {
-    if (alternatives.length > 1) {
-      const newAlternatives = [...alternatives];
-      newAlternatives.splice(index, 1);
-      setAlternatives(newAlternatives);
+  const removeColumn = (id) => {
+    if (tableData.filter(item => item.type === 'criterion').length > 1) {
+      setTableData(tableData.filter(item => item.id !== id));
     }
   };
 
-  const handleMatrixChange = (row, col, value) => {
-    const newMatrix = [...matrix];
-    newMatrix[row][col] = value;
-    setMatrix(newMatrix);
+  const handleMatrixChange = (rowId, colId, value) => {
+    setMatrix(prev => ({
+      ...prev,
+      [`${rowId}-${colId}`]: value
+    }));
   };
 
   const calculateResults = () => {
     // Ağırlıkların toplamını kontrol et
-    const totalWeight = criteria.reduce((sum, c) => sum + (parseFloat(c.weight) || 0), 0);
+    const totalWeight = tableData
+      .filter(item => item.type === 'criterion')
+      .reduce((sum, c) => sum + (parseFloat(c.weight) || 0), 0);
     
     if (totalWeight !== 100) {
       setError('Ağırlıkların toplamı %100 olmalıdır');
       return;
     }
 
-    // Ağırlıkları ve değerleri kontrol et
-    const hasEmptyCriteria = criteria.some(c => !c.name || !c.weight);
-    const hasEmptyAlternative = alternatives.some(a => !a);
+    // Alanları kontrol et
+    const hasEmptyFields = tableData.some(item => 
+      !item.name || (item.type === 'criterion' && !item.weight)
+    );
     
-    if (hasEmptyCriteria || hasEmptyAlternative) {
+    if (hasEmptyFields) {
       setError('Tüm alanları doldurunuz');
       return;
     }
@@ -75,19 +85,24 @@ const DecisionMaker = () => {
     setError('');
 
     // Sonuç hesaplamaları
-    const results = alternatives.map((_, altIndex) => {
+    const alternatives = tableData.filter(item => item.type === 'alternative');
+    const criteria = tableData.filter(item => item.type === 'criterion');
+
+    const results = alternatives.map(alt => {
       let score = 0;
-      criteria.forEach((c, critIndex) => {
-        const weight = parseFloat(c.weight) / 100;
-        const value = parseFloat(matrix[altIndex][critIndex]) || 0;
-        score += value * weight;
+      criteria.forEach(crit => {
+        const value = matrix[`${alt.id}-${crit.id}`] || '';
+        if (value) {
+          const weight = parseFloat(crit.weight) / 100;
+          score += parseFloat(value) * weight;
+        }
       });
       return score;
     });
 
     // Sonuçları sırala
     const sortedResults = alternatives.map((alt, index) => ({
-      alternative: alt,
+      alternative: alt.name,
       score: results[index]
     })).sort((a, b) => b.score - a.score);
 
@@ -102,99 +117,118 @@ const DecisionMaker = () => {
           Karar Verme Aracı
         </Typography>
 
-        <Typography variant="h5" gutterBottom>
-          Kriterler
-        </Typography>
-        <Box sx={{ mb: 4 }}>
-          {criteria.map((c, index) => (
-            <Box key={index} sx={{ display: 'flex', gap: 2, mb: 2 }}>
-              <TextField
-                label={`Kriter ${index + 1}`}
-                value={c.name}
-                onChange={(e) => handleCriteriaChange(index, 'name', e.target.value)}
-                sx={{ flex: 1 }}
-              />
-              <TextField
-                label="Ağırlık (%100)"
-                type="number"
-                value={c.weight}
-                onChange={(e) => handleCriteriaChange(index, 'weight', e.target.value)}
-                sx={{ width: 120 }}
-              />
-              <IconButton onClick={() => removeCriteria(index)}>
-                <DeleteIcon />
-              </IconButton>
-            </Box>
-          ))}
-          <Button variant="outlined" onClick={addCriteria}>
-            Yeni Kriter Ekle
-          </Button>
-          <Typography variant="caption" display="block" gutterBottom>
-            En fazla {MAX_CRITERIA} kriter ekleyebilirsiniz
-          </Typography>
-        </Box>
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                  <Box>
+                    <Button
+                      variant="outlined"
+                      startIcon={<AddIcon />}
+                      onClick={addRow}
+                      sx={{ mr: 1 }}
+                    >
+                      Alternatif Ekle
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<AddIcon />}
+                      onClick={addColumn}
+                    >
+                      Kriter Ekle
+                    </Button>
+                  </Box>
+                  <Typography variant="caption" display="block">
+                    En fazla {MAX_CRITERIA} kriter ekleyebilirsiniz
+                  </Typography>
+                </Box>
 
-        <Typography variant="h5" gutterBottom>
-          Alternatifler
-        </Typography>
-        <Box sx={{ mb: 4 }}>
-          {alternatives.map((a, index) => (
-            <Box key={index} sx={{ display: 'flex', gap: 2, mb: 2 }}>
-              <TextField
-                label={`Alternatif ${index + 1}`}
-                value={a}
-                onChange={(e) => handleAlternativeChange(index, e.target.value)}
-                sx={{ flex: 1 }}
-              />
-              <IconButton onClick={() => removeAlternative(index)}>
-                <DeleteIcon />
-              </IconButton>
-            </Box>
-          ))}
-          <Button variant="outlined" onClick={addAlternative}>
-            Yeni Alternatif Ekle
-          </Button>
-        </Box>
+                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Alternatif</TableCell>
+                        {tableData
+                          .filter(item => item.type === 'criterion')
+                          .map(criterion => (
+                            <TableCell key={criterion.id}>
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <TextField
+                                  value={criterion.name}
+                                  onChange={(e) => handleTableChange(criterion.id, 'name', e.target.value)}
+                                  size="small"
+                                  sx={{ mr: 1 }}
+                                />
+                                <TextField
+                                  label="%"
+                                  type="number"
+                                  value={criterion.weight}
+                                  onChange={(e) => handleTableChange(criterion.id, 'weight', e.target.value)}
+                                  size="small"
+                                  sx={{ width: 80 }}
+                                />
+                                <IconButton
+                                  onClick={() => removeColumn(criterion.id)}
+                                  color="error"
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </Box>
+                            </TableCell>
+                          ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {tableData
+                        .filter(item => item.type === 'alternative')
+                        .map(alternative => (
+                          <TableRow key={alternative.id}>
+                            <TableCell>
+                              <TextField
+                                value={alternative.name}
+                                onChange={(e) => handleTableChange(alternative.id, 'name', e.target.value)}
+                                size="small"
+                              />
+                              <IconButton
+                                onClick={() => removeRow(alternative.id)}
+                                color="error"
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </TableCell>
+                            {tableData
+                              .filter(item => item.type === 'criterion')
+                              .map(criterion => (
+                                <TableCell key={criterion.id}>
+                                  <TextField
+                                    value={matrix[`${alternative.id}-${criterion.id}`] || ''}
+                                    onChange={(e) => handleMatrixChange(alternative.id, criterion.id, e.target.value)}
+                                    size="small"
+                                  />
+                                </TableCell>
+                              ))}
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
 
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Alternatif</TableCell>
-                {criteria.map((c, index) => (
-                  <TableCell key={index}>{c.name}</TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {alternatives.map((_, row) => (
-                <TableRow key={row}>
-                  <TableCell>{alternatives[row]}</TableCell>
-                  {criteria.map((_, col) => (
-                    <TableCell key={col}>
-                      <TextField
-                        type="number"
-                        value={matrix[row]?.[col] || ''}
-                        onChange={(e) => handleMatrixChange(row, col, e.target.value)}
-                        size="small"
-                      />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <Button
-          variant="contained"
-          onClick={calculateResults}
-          sx={{ mt: 4 }}
-        >
-          Karar Ver
-        </Button>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                  <Button
+                    variant="contained"
+                    startIcon={<SaveIcon />}
+                    onClick={calculateResults}
+                  >
+                    Karar Ver
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
       </Box>
     </Container>
   );
