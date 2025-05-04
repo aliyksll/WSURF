@@ -31,6 +31,13 @@ const Navbar = () => {
           >
             İletişim
           </Button>
+          <Button
+            color="inherit"
+            component={RouterLink}
+            to="/decision"
+          >
+            Karar Ver
+          </Button>
         </Box>
       </Toolbar>
     </AppBar>

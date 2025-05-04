@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import DecisionMaker from './pages/DecisionMaker';
 
 const theme = createTheme({
   palette: {
@@ -23,11 +24,27 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
-        <Navbar />
+        <Navbar>
+          <Button
+            color="inherit"
+            component={RouterLink}
+            to="/contact"
+          >
+            İletişim
+          </Button>
+          <Button
+            color="inherit"
+            component={RouterLink}
+            to="/decision"
+          >
+            Karar Ver
+          </Button>
+        </Navbar>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/decision" element={<DecisionMaker />} />
         </Routes>
       </Router>
     </ThemeProvider>

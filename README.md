@@ -14,7 +14,7 @@ Bu proje, modern ve kullanıcı dostu bir web sitesi oluşturmak için geliştir
 
 1. Projeyi klonlayın:
 ```bash
-git clone https://github.com/sizin-repo-urlunuz.git
+git clone https://github.com/aliyuksel/WSURF.git
 ```
 
 2. Gerekli paketleri yükleyin:
